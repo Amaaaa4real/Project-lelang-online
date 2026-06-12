@@ -15,10 +15,19 @@ date_default_timezone_set('Asia/Jakarta');
 // Proses hapus
 if (isset($_GET['hapus'])) {
   $id = $_GET['hapus'];
-  mysqli_query($koneksi, "DELETE FROM tb_petugas WHERE id_petugas='$id'");
 
-  header("Location: petugas.php");
-  exit();
+  // Cek apakah petugas sedang digunakan di tb_lelang
+  $cek = mysqli_query($koneksi, "SELECT COUNT(*) as total FROM tb_lelang WHERE id_petugas='$id'");
+  $row_cek = mysqli_fetch_assoc($cek);
+
+  if ($row_cek['total'] > 0) {
+    header("Location: petugas.php?error=dipakai");
+    exit();
+  } else {
+    mysqli_query($koneksi, "DELETE FROM tb_petugas WHERE id_petugas='$id'");
+    header("Location: petugas.php?success=terhapus");
+    exit();
+  }
 }
 
 $data = mysqli_query($koneksi, "
@@ -27,7 +36,6 @@ $data = mysqli_query($koneksi, "
   JOIN tb_level l ON p.id_level = l.id_level
   WHERE l.level = 'petugas'
 ");
-
 ?>
 
 <!DOCTYPE html>
@@ -140,6 +148,25 @@ $data = mysqli_query($koneksi, "
     <?php include 'topbar.php'; ?>
 
     <div class="content">
+
+      <!-- Alert Error -->
+      <?php if (isset($_GET['error']) && $_GET['error'] == 'dipakai'): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <strong><i class="fas fa-exclamation-triangle"></i> Gagal!</strong>
+          Petugas ini tidak dapat dihapus karena sedang terlibat dalam data lelang.
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <?php endif; ?>
+
+      <!-- Alert Sukses -->
+      <?php if (isset($_GET['success'])): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+          <strong><i class="fas fa-check-circle"></i> Berhasil!</strong>
+          Data petugas berhasil dihapus.
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <?php endif; ?>
+
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="dashboard-title m-0">Data Petugas</h3>
         <a href="tambahPetugas.php" class="btn btn-tambah">
@@ -167,7 +194,9 @@ $data = mysqli_query($koneksi, "
               <td><?= str_repeat('*', 8) ?></td>
               <td>
                 <a href="editPetugas.php?id=<?= $row['id_petugas'] ?>" class="btn btn-warning btn-sm">Edit</a>
-                <a href="petugas.php?hapus=<?= $row['id_petugas'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin ingin hapus data ini?')">Hapus</a>
+                <a href="petugas.php?hapus=<?= $row['id_petugas'] ?>"
+                  class="btn btn-danger btn-sm"
+                  onclick="return confirm('Yakin ingin menghapus petugas <?= htmlspecialchars($row['nama_petugas']) ?>?')">Hapus</a>
               </td>
             </tr>
           <?php endwhile; ?>
@@ -175,6 +204,7 @@ $data = mysqli_query($koneksi, "
       </table>
     </div>
   </div>
+
   <script>
     function logoutAlert() {
       if (confirm('Yakin ingin logout?')) {
